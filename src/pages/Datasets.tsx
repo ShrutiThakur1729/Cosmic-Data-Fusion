@@ -1,84 +1,145 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, Plus, Grid, List, Database, FileText } from 'lucide-react';
+import { Search, Filter, Plus, Grid, List, Database, FileText, Trash2, Globe, Lock } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { StarField } from '@/components/cosmic/StarField';
 import { FileUpload } from '@/components/upload/FileUpload';
-import { DatasetCard } from '@/components/dashboard/DatasetCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDatasets, Dataset } from '@/hooks/useDatasets';
+import { useAuth } from '@/hooks/useAuth';
+import { Link, useNavigate } from 'react-router-dom';
 
-const sampleDatasets = [
-  {
-    name: 'Gaia DR3 Subset',
-    type: 'csv' as const,
-    size: '2.4 GB',
-    rowCount: 1500000,
-    lastModified: '2 hours ago',
-    status: 'ready' as const,
-    source: 'ESA Gaia Archive',
-  },
-  {
-    name: 'SDSS Spectroscopy',
-    type: 'fits' as const,
-    size: '850 MB',
-    rowCount: undefined,
-    lastModified: '5 hours ago',
-    status: 'processing' as const,
-    source: 'SDSS DR17',
-  },
-  {
-    name: 'TESS Light Curves',
-    type: 'fits' as const,
-    size: '320 MB',
-    rowCount: undefined,
-    lastModified: '1 day ago',
-    status: 'ready' as const,
-    source: 'MAST Archive',
-  },
-  {
-    name: 'Kepler Exoplanet Data',
-    type: 'csv' as const,
-    size: '156 MB',
-    rowCount: 245000,
-    lastModified: '2 days ago',
-    status: 'ready' as const,
-    source: 'NASA Exoplanet Archive',
-  },
-  {
-    name: 'Hubble Deep Field',
-    type: 'fits' as const,
-    size: '1.2 GB',
-    rowCount: undefined,
-    lastModified: '3 days ago',
-    status: 'ready' as const,
-    source: 'HST Archive',
-  },
-  {
-    name: 'JWST NIRCam Observations',
-    type: 'fits' as const,
-    size: '3.8 GB',
-    rowCount: undefined,
-    lastModified: '1 week ago',
-    status: 'ready' as const,
-    source: 'MAST Archive',
-  },
-];
+function DatasetCardDB({ 
+  dataset, 
+  onDelete 
+}: { 
+  dataset: Dataset; 
+  onDelete: (id: string) => void;
+}) {
+  const formatSize = (bytes: number | null | undefined) => {
+    if (!bytes) return 'Unknown';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'standardized': return 'bg-accent/20 text-accent';
+      case 'processing': return 'bg-primary/20 text-primary';
+      case 'pending': return 'bg-muted text-muted-foreground';
+      case 'failed': return 'bg-destructive/20 text-destructive';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (hours < 1) return 'Just now';
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      className="glass-card p-4 group"
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-4 flex-1">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+            dataset.metadata?.file_format === 'fits' ? 'bg-secondary/20' : 'bg-accent/20'
+          }`}>
+            {dataset.metadata?.file_format === 'fits' ? (
+              <Database className="w-6 h-6 text-secondary" />
+            ) : (
+              <FileText className="w-6 h-6 text-accent" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-medium text-foreground truncate">{dataset.name}</h3>
+              {dataset.is_public ? (
+                <Globe className="w-3 h-3 text-accent" />
+              ) : (
+                <Lock className="w-3 h-3 text-muted-foreground" />
+              )}
+            </div>
+            {dataset.description && (
+              <p className="text-xs text-muted-foreground truncate mb-2">{dataset.description}</p>
+            )}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>{formatSize(dataset.metadata?.file_size_bytes)}</span>
+              {dataset.metadata?.num_rows && (
+                <span>{dataset.metadata.num_rows.toLocaleString()} rows</span>
+              )}
+              <span>{formatDate(dataset.created_at)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(dataset.processing_status)}`}>
+            {dataset.processing_status}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(dataset.id)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function Datasets() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const { datasets, loading, deleteDataset, refreshDatasets } = useDatasets();
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
-  const filteredDatasets = sampleDatasets.filter((dataset) =>
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/login');
+    }
+  }, [user, authLoading, navigate]);
+
+  const filteredDatasets = datasets.filter((dataset) =>
     dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dataset.source?.toLowerCase().includes(searchQuery.toLowerCase())
+    dataset.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleFileParsed = (file: any) => {
-    setUploadedFiles((prev) => [...prev, file]);
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this dataset?')) {
+      await deleteDataset(id);
+    }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="orbital-loader" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen relative">
@@ -105,7 +166,7 @@ export default function Datasets() {
             <TabsList className="glass-card p-1">
               <TabsTrigger value="browse" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Database className="w-4 h-4 mr-2" />
-                Browse Datasets
+                My Datasets ({datasets.length})
               </TabsTrigger>
               <TabsTrigger value="upload" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Plus className="w-4 h-4 mr-2" />
@@ -151,30 +212,54 @@ export default function Datasets() {
                 </div>
               </motion.div>
 
-              {/* Dataset Grid */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className={viewMode === 'grid' ? 'grid md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}
-              >
-                {filteredDatasets.map((dataset, index) => (
-                  <motion.div
-                    key={dataset.name}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + index * 0.05 }}
-                  >
-                    <DatasetCard {...dataset} />
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {filteredDatasets.length === 0 && (
-                <div className="text-center py-12">
-                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No datasets found matching your search.</p>
+              {/* Loading State */}
+              {loading && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="orbital-loader" />
                 </div>
+              )}
+
+              {/* Empty State */}
+              {!loading && filteredDatasets.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center py-12"
+                >
+                  <Database className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No datasets yet</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Upload your first astronomical dataset to get started
+                  </p>
+                  <Button variant="cosmic" onClick={() => {
+                    const tabTrigger = document.querySelector('[data-state="inactive"][value="upload"]') as HTMLElement;
+                    tabTrigger?.click();
+                  }}>
+                    <Plus className="w-4 h-4" />
+                    Upload Dataset
+                  </Button>
+                </motion.div>
+              )}
+
+              {/* Dataset Grid/List */}
+              {!loading && filteredDatasets.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className={viewMode === 'grid' ? 'grid md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}
+                >
+                  {filteredDatasets.map((dataset, index) => (
+                    <motion.div
+                      key={dataset.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + index * 0.05 }}
+                    >
+                      <DatasetCardDB dataset={dataset} onDelete={handleDelete} />
+                    </motion.div>
+                  ))}
+                </motion.div>
               )}
             </TabsContent>
 
@@ -184,7 +269,7 @@ export default function Datasets() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <FileUpload onFileParsed={handleFileParsed} />
+                <FileUpload onDatasetUploaded={refreshDatasets} />
               </motion.div>
 
               {/* Processing Pipeline Info */}
