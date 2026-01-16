@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Rocket, User, Building } from 'lucide-react';
@@ -6,6 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StarField } from '@/components/cosmic/StarField';
+import { useAuth } from '@/hooks/useAuth';
+import { z } from 'zod';
+
+const signupSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  institution: z.string().optional(),
+});
 
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,22 +27,69 @@ export default function Signup() {
     institution: '',
     password: '',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const navigate = useNavigate();
+  const { signUp, user, loading } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+    if (!agreed) {
+      setErrors({ terms: 'You must agree to the terms and conditions' });
+      return;
+    }
+
+    // Validate input
+    const result = signupSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        fieldErrors[field] = err.message;
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate signup
-    setTimeout(() => {
-      setIsLoading(false);
+    const { error } = await signUp(
+      formData.email, 
+      formData.password, 
+      formData.name, 
+      formData.institution
+    );
+    setIsLoading(false);
+
+    if (!error) {
       navigate('/dashboard');
-    }, 1500);
+    }
   };
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="orbital-loader" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">
@@ -83,10 +142,13 @@ export default function Signup() {
                   placeholder="Dr. Jane Smith"
                   value={formData.name}
                   onChange={(e) => updateField('name', e.target.value)}
-                  className="pl-10 bg-muted/30 border-border/50"
+                  className={`pl-10 bg-muted/30 border-border/50 ${errors.name ? 'border-destructive' : ''}`}
                   required
                 />
               </div>
+              {errors.name && (
+                <p className="text-xs text-destructive">{errors.name}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -99,10 +161,13 @@ export default function Signup() {
                   placeholder="researcher@institution.edu"
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
-                  className="pl-10 bg-muted/30 border-border/50"
+                  className={`pl-10 bg-muted/30 border-border/50 ${errors.email ? 'border-destructive' : ''}`}
                   required
                 />
               </div>
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -130,7 +195,7 @@ export default function Signup() {
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => updateField('password', e.target.value)}
-                  className="pl-10 pr-10 bg-muted/30 border-border/50"
+                  className={`pl-10 pr-10 bg-muted/30 border-border/50 ${errors.password ? 'border-destructive' : ''}`}
                   required
                 />
                 <button
@@ -141,20 +206,33 @@ export default function Signup() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                At least 8 characters with uppercase and number
-              </p>
+              {errors.password ? (
+                <p className="text-xs text-destructive">{errors.password}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  At least 8 characters with uppercase and number
+                </p>
+              )}
             </div>
 
             <div className="flex items-start gap-2">
-              <input type="checkbox" className="rounded border-border bg-muted/30 mt-1" required />
-              <span className="text-sm text-muted-foreground">
+              <input 
+                type="checkbox" 
+                id="terms"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="rounded border-border bg-muted/30 mt-1" 
+              />
+              <label htmlFor="terms" className="text-sm text-muted-foreground">
                 I agree to the{' '}
                 <Link to="/terms" className="text-primary hover:underline">Terms of Service</Link>
                 {' '}and{' '}
                 <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
-              </span>
+              </label>
             </div>
+            {errors.terms && (
+              <p className="text-xs text-destructive">{errors.terms}</p>
+            )}
 
             <Button
               type="submit"

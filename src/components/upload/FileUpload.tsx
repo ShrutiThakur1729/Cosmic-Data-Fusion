@@ -1,23 +1,30 @@
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Database } from 'lucide-react';
+import { Upload, FileText, X, CheckCircle, AlertCircle, Loader2, Database, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
+import { useDatasets } from '@/hooks/useDatasets';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ParsedFile {
   name: string;
   type: 'fits' | 'csv' | 'unknown';
   size: number;
-  status: 'parsing' | 'success' | 'error';
+  status: 'parsing' | 'success' | 'error' | 'uploading' | 'uploaded';
   data?: any;
   error?: string;
   headers?: string[];
   rowCount?: number;
   metadata?: Record<string, any>;
+  file?: File;
 }
 
 interface FileUploadProps {
   onFileParsed?: (file: ParsedFile) => void;
+  onDatasetUploaded?: () => void;
 }
 
 // FITS file header parser (simplified)
@@ -69,10 +76,15 @@ function parseFITSData(buffer: ArrayBuffer, header: Record<string, any>): any {
   };
 }
 
-export function FileUpload({ onFileParsed }: FileUploadProps) {
+export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState<ParsedFile[]>([]);
+  const [datasetName, setDatasetName] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedFile, setSelectedFile] = useState<ParsedFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadDataset } = useDatasets();
+  const { user } = useAuth();
 
   const parseFile = useCallback(async (file: File) => {
     const parsedFile: ParsedFile = {
@@ -80,6 +92,7 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
       type: 'unknown',
       size: file.size,
       status: 'parsing',
+      file: file,
     };
 
     // Determine file type
@@ -101,32 +114,26 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
           dynamicTyping: true,
           skipEmptyLines: true,
           complete: (results) => {
+            const updatedFile: ParsedFile = {
+              ...parsedFile,
+              status: 'success',
+              data: results.data.slice(0, 100),
+              headers: results.meta.fields || [],
+              rowCount: results.data.length,
+              metadata: {
+                delimiter: results.meta.delimiter,
+                linebreak: results.meta.linebreak,
+                fields: results.meta.fields?.length || 0,
+              },
+              file: file,
+            };
             setFiles((prev) =>
-              prev.map((f) =>
-                f.name === file.name
-                  ? {
-                      ...f,
-                      status: 'success',
-                      data: results.data.slice(0, 100), // Preview first 100 rows
-                      headers: results.meta.fields || [],
-                      rowCount: results.data.length,
-                      metadata: {
-                        delimiter: results.meta.delimiter,
-                        linebreak: results.meta.linebreak,
-                        fields: results.meta.fields?.length || 0,
-                      },
-                    }
-                  : f
-              )
+              prev.map((f) => f.name === file.name ? updatedFile : f)
             );
+            setSelectedFile(updatedFile);
+            setDatasetName(file.name.replace(/\.[^/.]+$/, ''));
             if (onFileParsed) {
-              onFileParsed({
-                ...parsedFile,
-                status: 'success',
-                data: results.data.slice(0, 100),
-                headers: results.meta.fields || [],
-                rowCount: results.data.length,
-              });
+              onFileParsed(updatedFile);
             }
           },
           error: (error) => {
@@ -145,28 +152,23 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
         const header = parseFITSHeader(buffer);
         const data = parseFITSData(buffer, header);
         
+        const updatedFile: ParsedFile = {
+          ...parsedFile,
+          status: 'success',
+          metadata: header,
+          data: data,
+          headers: Object.keys(header),
+          file: file,
+        };
+        
         setFiles((prev) =>
-          prev.map((f) =>
-            f.name === file.name
-              ? {
-                  ...f,
-                  status: 'success',
-                  metadata: header,
-                  data: data,
-                  headers: Object.keys(header),
-                }
-              : f
-          )
+          prev.map((f) => f.name === file.name ? updatedFile : f)
         );
+        setSelectedFile(updatedFile);
+        setDatasetName(header.OBJECT || file.name.replace(/\.[^/.]+$/, ''));
         
         if (onFileParsed) {
-          onFileParsed({
-            ...parsedFile,
-            status: 'success',
-            metadata: header,
-            data: data,
-            headers: Object.keys(header),
-          });
+          onFileParsed(updatedFile);
         }
       } else {
         setFiles((prev) =>
@@ -208,6 +210,54 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
 
   const removeFile = (name: string) => {
     setFiles((prev) => prev.filter((f) => f.name !== name));
+    if (selectedFile?.name === name) {
+      setSelectedFile(null);
+      setDatasetName('');
+      setDescription('');
+    }
+  };
+
+  const handleSaveToDatabase = async () => {
+    if (!selectedFile?.file || !datasetName || !user) return;
+
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.name === selectedFile.name ? { ...f, status: 'uploading' } : f
+      )
+    );
+
+    const result = await uploadDataset({
+      name: datasetName,
+      description: description || undefined,
+      file: selectedFile.file,
+      metadata: {
+        file_name: selectedFile.name,
+        file_format: selectedFile.type,
+        file_size_bytes: selectedFile.size,
+        object_name: selectedFile.metadata?.OBJECT,
+        num_rows: selectedFile.rowCount,
+        num_columns: selectedFile.headers?.length,
+        header_data: selectedFile.metadata,
+      },
+    });
+
+    if (result) {
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.name === selectedFile.name ? { ...f, status: 'uploaded' } : f
+        )
+      );
+      setSelectedFile(null);
+      setDatasetName('');
+      setDescription('');
+      onDatasetUploaded?.();
+    } else {
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.name === selectedFile.name ? { ...f, status: 'success' } : f
+        )
+      );
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -266,6 +316,67 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
         </motion.div>
       </motion.div>
 
+      {/* Save to Database Form */}
+      {selectedFile && selectedFile.status === 'success' && user && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6"
+        >
+          <h3 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
+            <Save className="w-5 h-5 text-primary" />
+            Save to Cloud Repository
+          </h3>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="datasetName">Dataset Name</Label>
+              <Input
+                id="datasetName"
+                value={datasetName}
+                onChange={(e) => setDatasetName(e.target.value)}
+                placeholder="Enter dataset name"
+                className="bg-muted/30 border-border/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe this dataset..."
+                className="bg-muted/30 border-border/50 min-h-[80px]"
+              />
+            </div>
+            <Button
+              variant="cosmic"
+              onClick={handleSaveToDatabase}
+              disabled={!datasetName}
+              className="w-full"
+            >
+              <Database className="w-4 h-4" />
+              Save Dataset to Cloud
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Auth prompt */}
+      {selectedFile && selectedFile.status === 'success' && !user && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-6 text-center"
+        >
+          <p className="text-muted-foreground mb-4">
+            Sign in to save datasets to your cloud repository
+          </p>
+          <Button variant="cosmic" asChild>
+            <a href="/login">Sign In</a>
+          </Button>
+        </motion.div>
+      )}
+
       {/* File List */}
       <AnimatePresence mode="popLayout">
         {files.map((file, index) => (
@@ -275,7 +386,8 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -100 }}
             transition={{ delay: index * 0.1 }}
-            className="glass-card p-4"
+            className={`glass-card p-4 ${selectedFile?.name === file.name ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => file.status === 'success' && setSelectedFile(file)}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
@@ -283,7 +395,7 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
                   file.type === 'fits' ? 'bg-secondary/20' : 
                   file.type === 'csv' ? 'bg-accent/20' : 'bg-muted'
                 }`}>
-                  {file.status === 'parsing' ? (
+                  {file.status === 'parsing' || file.status === 'uploading' ? (
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   ) : file.type === 'fits' ? (
                     <Database className="w-6 h-6 text-secondary" />
@@ -299,6 +411,16 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
                     </span>
                     {file.status === 'success' && (
                       <CheckCircle className="w-4 h-4 text-accent" />
+                    )}
+                    {file.status === 'uploaded' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-accent/20 text-accent">
+                        Saved
+                      </span>
+                    )}
+                    {file.status === 'uploading' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-primary/20 text-primary">
+                        Uploading...
+                      </span>
                     )}
                     {file.status === 'error' && (
                       <AlertCircle className="w-4 h-4 text-destructive" />
@@ -328,7 +450,10 @@ export function FileUpload({ onFileParsed }: FileUploadProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => removeFile(file.name)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFile(file.name);
+                }}
                 className="text-muted-foreground hover:text-destructive"
               >
                 <X className="w-4 h-4" />

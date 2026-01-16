@@ -14,16 +14,255 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dataset_collaborators: {
+        Row: {
+          created_at: string
+          dataset_id: string
+          id: string
+          invited_by: string | null
+          permission_level: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dataset_id: string
+          id?: string
+          invited_by?: string | null
+          permission_level?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dataset_id?: string
+          id?: string
+          invited_by?: string | null
+          permission_level?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dataset_collaborators_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dataset_metadata: {
+        Row: {
+          coordinate_system:
+            | Database["public"]["Enums"]["coordinate_system"]
+            | null
+          created_at: string
+          dataset_id: string
+          file_format: string
+          file_name: string
+          file_size_bytes: number | null
+          header_data: Json | null
+          id: string
+          num_columns: number | null
+          num_rows: number | null
+          object_name: string | null
+          temporal_range_end: string | null
+          temporal_range_start: string | null
+          units: string | null
+          updated_at: string
+        }
+        Insert: {
+          coordinate_system?:
+            | Database["public"]["Enums"]["coordinate_system"]
+            | null
+          created_at?: string
+          dataset_id: string
+          file_format: string
+          file_name: string
+          file_size_bytes?: number | null
+          header_data?: Json | null
+          id?: string
+          num_columns?: number | null
+          num_rows?: number | null
+          object_name?: string | null
+          temporal_range_end?: string | null
+          temporal_range_start?: string | null
+          units?: string | null
+          updated_at?: string
+        }
+        Update: {
+          coordinate_system?:
+            | Database["public"]["Enums"]["coordinate_system"]
+            | null
+          created_at?: string
+          dataset_id?: string
+          file_format?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          header_data?: Json | null
+          id?: string
+          num_columns?: number | null
+          num_rows?: number | null
+          object_name?: string | null
+          temporal_range_end?: string | null
+          temporal_range_start?: string | null
+          units?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dataset_metadata_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: true
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dataset_versions: {
+        Row: {
+          change_description: string | null
+          created_at: string
+          created_by: string | null
+          dataset_id: string
+          file_path: string
+          id: string
+          version_number: number
+        }
+        Insert: {
+          change_description?: string | null
+          created_at?: string
+          created_by?: string | null
+          dataset_id: string
+          file_path: string
+          id?: string
+          version_number?: number
+        }
+        Update: {
+          change_description?: string | null
+          created_at?: string
+          created_by?: string | null
+          dataset_id?: string
+          file_path?: string
+          id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dataset_versions_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      datasets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          owner_id: string
+          processing_status: Database["public"]["Enums"]["processing_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          owner_id: string
+          processing_status?: Database["public"]["Enums"]["processing_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          owner_id?: string
+          processing_status?: Database["public"]["Enums"]["processing_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string
+          id: string
+          institution: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email: string
+          id?: string
+          institution?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          institution?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_access_dataset: { Args: { _dataset_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: never; Returns: boolean }
+      is_dataset_collaborator: {
+        Args: { _dataset_id: string }
+        Returns: boolean
+      }
+      is_dataset_owner: { Args: { _dataset_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "researcher" | "institutional" | "admin"
+      coordinate_system: "equatorial" | "galactic" | "ecliptic" | "icrs"
+      processing_status: "pending" | "processing" | "standardized" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +389,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["researcher", "institutional", "admin"],
+      coordinate_system: ["equatorial", "galactic", "ecliptic", "icrs"],
+      processing_status: ["pending", "processing", "standardized", "failed"],
+    },
   },
 } as const
