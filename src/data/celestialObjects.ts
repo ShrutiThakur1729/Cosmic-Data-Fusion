@@ -1,0 +1,375 @@
+// Real celestial objects with data compiled from NASA/ESA/Wikipedia public sources.
+// Images use Wikimedia Commons public URLs (freely licensed).
+
+export interface CelestialObject {
+  id: string;
+  name: string;
+  ra: number;        // Right Ascension (degrees)
+  dec: number;       // Declination (degrees)
+  mag: number;       // Apparent magnitude
+  type: 'star' | 'galaxy' | 'nebula' | 'cluster' | 'planet';
+  constellation: string;
+  distance: string;         // Distance in light-years or AU
+  description: string;
+  discoveredBy?: string;
+  discoveryYear?: string;
+  imageUrl: string;
+  sourceLink: string;
+}
+
+export const CELESTIAL_OBJECTS: CelestialObject[] = [
+  // Stars
+  {
+    id: 'sirius',
+    name: 'Sirius A',
+    ra: 101.29,
+    dec: -16.72,
+    mag: -1.46,
+    type: 'star',
+    constellation: 'Canis Major',
+    distance: '8.6 light-years',
+    description:
+      'The brightest star in the night sky. A binary system consisting of a main-sequence star (Sirius A) and a faint white dwarf companion (Sirius B).',
+    discoveredBy: 'Known since antiquity',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Sirius_A_and_B_Hubble_photo.jpg/640px-Sirius_A_and_B_Hubble_photo.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Sirius',
+  },
+  {
+    id: 'betelgeuse',
+    name: 'Betelgeuse',
+    ra: 88.79,
+    dec: 7.41,
+    mag: 0.5,
+    type: 'star',
+    constellation: 'Orion',
+    distance: '~548 light-years',
+    description:
+      'A red supergiant, one of the largest stars visible to the naked eye. Expected to explode as a supernova within the next 100,000 years.',
+    discoveredBy: 'Known since antiquity',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Betelgeuse_captured_by_ALMA.jpg/640px-Betelgeuse_captured_by_ALMA.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Betelgeuse',
+  },
+  {
+    id: 'rigel',
+    name: 'Rigel',
+    ra: 78.63,
+    dec: -8.2,
+    mag: 0.13,
+    type: 'star',
+    constellation: 'Orion',
+    distance: '~860 light-years',
+    description:
+      'A blue supergiant and the brightest star in Orion. Rigel is around 120,000 times more luminous than the Sun.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Orion_Head_to_Toe.jpg/640px-Orion_Head_to_Toe.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Rigel',
+  },
+  {
+    id: 'vega',
+    name: 'Vega',
+    ra: 279.23,
+    dec: 38.78,
+    mag: 0.03,
+    type: 'star',
+    constellation: 'Lyra',
+    distance: '25 light-years',
+    description:
+      'The fifth-brightest star in the night sky and the brightest star in Lyra. Was the northern pole star around 12,000 BCE.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Vega_Debris_Disk.jpg/640px-Vega_Debris_Disk.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Vega',
+  },
+  {
+    id: 'polaris',
+    name: 'Polaris (North Star)',
+    ra: 37.95,
+    dec: 89.26,
+    mag: 1.98,
+    type: 'star',
+    constellation: 'Ursa Minor',
+    distance: '~433 light-years',
+    description:
+      'The current northern pole star. A yellow supergiant that lies almost directly above the Earth\'s northern rotational axis.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Polaris_alpha_ursae_minoris.jpg/640px-Polaris_alpha_ursae_minoris.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Polaris',
+  },
+  {
+    id: 'arcturus',
+    name: 'Arcturus',
+    ra: 213.92,
+    dec: 19.18,
+    mag: -0.05,
+    type: 'star',
+    constellation: 'Boötes',
+    distance: '36.7 light-years',
+    description:
+      'A red giant and the brightest star in the northern celestial hemisphere. Its light was used to open the 1933 Chicago World\'s Fair.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Position_Alpha_Boo.png/640px-Position_Alpha_Boo.png',
+    sourceLink: 'https://en.wikipedia.org/wiki/Arcturus',
+  },
+  {
+    id: 'alpha-cen',
+    name: 'Alpha Centauri',
+    ra: 219.9,
+    dec: -60.83,
+    mag: -0.27,
+    type: 'star',
+    constellation: 'Centaurus',
+    distance: '4.37 light-years',
+    description:
+      'The closest star system to the Solar System. A triple star system including Proxima Centauri, the nearest known star to the Sun.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2b/Alpha%2C_Beta_and_Proxima_Centauri_%281%29.jpg/640px-Alpha%2C_Beta_and_Proxima_Centauri_%281%29.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Alpha_Centauri',
+  },
+  {
+    id: 'canopus',
+    name: 'Canopus',
+    ra: 95.99,
+    dec: -52.7,
+    mag: -0.74,
+    type: 'star',
+    constellation: 'Carina',
+    distance: '~310 light-years',
+    description:
+      'The second-brightest star in the night sky. A bright giant of spectral class A9, used as a guidance reference by many interplanetary spacecraft.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Canopus_visto_desde_la_ISS.jpg/640px-Canopus_visto_desde_la_ISS.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Canopus',
+  },
+  {
+    id: 'procyon',
+    name: 'Procyon',
+    ra: 114.83,
+    dec: 5.22,
+    mag: 0.34,
+    type: 'star',
+    constellation: 'Canis Minor',
+    distance: '11.46 light-years',
+    description:
+      'The brightest star in Canis Minor and one of the closest stellar systems to Earth. A binary system with a white dwarf companion.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Procyon_A_and_B.jpg/640px-Procyon_A_and_B.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Procyon',
+  },
+  {
+    id: 'capella',
+    name: 'Capella',
+    ra: 79.17,
+    dec: 46.0,
+    mag: 0.08,
+    type: 'star',
+    constellation: 'Auriga',
+    distance: '42.9 light-years',
+    description:
+      'The sixth-brightest star in the night sky. Actually a quadruple star system organized as two binary pairs.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Capella_Aa_and_Ab.png/640px-Capella_Aa_and_Ab.png',
+    sourceLink: 'https://en.wikipedia.org/wiki/Capella',
+  },
+
+  // Galaxies
+  {
+    id: 'andromeda',
+    name: 'Andromeda Galaxy (M31)',
+    ra: 10.68,
+    dec: 41.27,
+    mag: 3.44,
+    type: 'galaxy',
+    constellation: 'Andromeda',
+    distance: '2.537 million light-years',
+    description:
+      'The nearest major galaxy to the Milky Way. Contains approximately one trillion stars and is on a collision course with our galaxy.',
+    discoveredBy: 'Abd al-Rahman al-Sufi',
+    discoveryYear: '964 CE',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Andromeda_Galaxy_%28with_h-alpha%29.jpg/640px-Andromeda_Galaxy_%28with_h-alpha%29.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Andromeda_Galaxy',
+  },
+  {
+    id: 'whirlpool',
+    name: 'Whirlpool Galaxy (M51)',
+    ra: 202.47,
+    dec: 47.2,
+    mag: 8.4,
+    type: 'galaxy',
+    constellation: 'Canes Venatici',
+    distance: '~23.16 million light-years',
+    description:
+      'A grand-design spiral galaxy interacting with the dwarf galaxy NGC 5195. One of the most famous galaxies in the sky.',
+    discoveredBy: 'Charles Messier',
+    discoveryYear: '1773',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Messier51_sRGB.jpg/640px-Messier51_sRGB.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Whirlpool_Galaxy',
+  },
+  {
+    id: 'sombrero',
+    name: 'Sombrero Galaxy (M104)',
+    ra: 189.99,
+    dec: -11.62,
+    mag: 8.98,
+    type: 'galaxy',
+    constellation: 'Virgo',
+    distance: '~29.3 million light-years',
+    description:
+      'An unbarred spiral galaxy with a distinctive dust lane and bright central bulge, resembling a sombrero hat.',
+    discoveredBy: 'Pierre Méchain',
+    discoveryYear: '1781',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/M104_ngc4594_sombrero_galaxy_hi-res.jpg/640px-M104_ngc4594_sombrero_galaxy_hi-res.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Sombrero_Galaxy',
+  },
+  {
+    id: 'triangulum',
+    name: 'Triangulum Galaxy (M33)',
+    ra: 23.46,
+    dec: 30.66,
+    mag: 5.72,
+    type: 'galaxy',
+    constellation: 'Triangulum',
+    distance: '~2.73 million light-years',
+    description:
+      'The third-largest member of the Local Group of galaxies, after Andromeda and the Milky Way.',
+    discoveredBy: 'Giovanni Battista Hodierna',
+    discoveryYear: 'before 1654',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/VST_snaps_a_very_detailed_view_of_the_Triangulum_Galaxy.jpg/640px-VST_snaps_a_very_detailed_view_of_the_Triangulum_Galaxy.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Triangulum_Galaxy',
+  },
+
+  // Nebulae
+  {
+    id: 'orion-nebula',
+    name: 'Orion Nebula (M42)',
+    ra: 83.82,
+    dec: -5.39,
+    mag: 4.0,
+    type: 'nebula',
+    constellation: 'Orion',
+    distance: '~1,344 light-years',
+    description:
+      'One of the brightest nebulae, visible to the naked eye. A stellar nursery where new stars are being born.',
+    discoveredBy: 'Nicolas-Claude Fabri de Peiresc',
+    discoveryYear: '1610',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg/640px-Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Orion_Nebula',
+  },
+  {
+    id: 'crab-nebula',
+    name: 'Crab Nebula (M1)',
+    ra: 83.63,
+    dec: 22.01,
+    mag: 8.4,
+    type: 'nebula',
+    constellation: 'Taurus',
+    distance: '~6,500 light-years',
+    description:
+      'A supernova remnant from an explosion observed by Chinese astronomers in 1054 CE. Contains the Crab Pulsar at its center.',
+    discoveredBy: 'John Bevis',
+    discoveryYear: '1731',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Crab_Nebula.jpg/640px-Crab_Nebula.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Crab_Nebula',
+  },
+  {
+    id: 'eagle-nebula',
+    name: 'Eagle Nebula (M16)',
+    ra: 274.7,
+    dec: -13.78,
+    mag: 6.0,
+    type: 'nebula',
+    constellation: 'Serpens',
+    distance: '~7,000 light-years',
+    description:
+      'Home to the famous "Pillars of Creation" — vast columns of interstellar gas and dust where new stars are forming.',
+    discoveredBy: 'Jean-Philippe de Chéseaux',
+    discoveryYear: '1745-46',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Eagle_Nebula_from_ESO.jpg/640px-Eagle_Nebula_from_ESO.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Eagle_Nebula',
+  },
+  {
+    id: 'ring-nebula',
+    name: 'Ring Nebula (M57)',
+    ra: 283.4,
+    dec: 33.03,
+    mag: 8.8,
+    type: 'nebula',
+    constellation: 'Lyra',
+    distance: '~2,283 light-years',
+    description:
+      'A planetary nebula formed when a Sun-like star ejected its outer layers. The central star is now a white dwarf.',
+    discoveredBy: 'Antoine Darquier de Pellepoix',
+    discoveryYear: '1779',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/M57_The_Ring_Nebula.jpg/640px-M57_The_Ring_Nebula.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Ring_Nebula',
+  },
+  {
+    id: 'helix-nebula',
+    name: 'Helix Nebula (NGC 7293)',
+    ra: 337.41,
+    dec: -20.83,
+    mag: 7.6,
+    type: 'nebula',
+    constellation: 'Aquarius',
+    distance: '~655 light-years',
+    description:
+      'One of the closest planetary nebulae to Earth. Nicknamed the "Eye of God" for its distinctive appearance.',
+    discoveredBy: 'Karl Ludwig Harding',
+    discoveryYear: 'before 1824',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/NGC7293_%282004%29.jpg/640px-NGC7293_%282004%29.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Helix_Nebula',
+  },
+
+  // Clusters
+  {
+    id: 'pleiades',
+    name: 'Pleiades (M45)',
+    ra: 56.87,
+    dec: 24.12,
+    mag: 1.6,
+    type: 'cluster',
+    constellation: 'Taurus',
+    distance: '~444 light-years',
+    description:
+      'The "Seven Sisters" — an open cluster of hot B-type stars, one of the nearest star clusters to Earth and visible to the naked eye.',
+    discoveredBy: 'Known since antiquity',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Pleiades_large.jpg/640px-Pleiades_large.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Pleiades',
+  },
+  {
+    id: 'hyades',
+    name: 'Hyades Cluster',
+    ra: 66.75,
+    dec: 15.87,
+    mag: 0.5,
+    type: 'cluster',
+    constellation: 'Taurus',
+    distance: '~153 light-years',
+    description:
+      'The nearest open cluster to the Solar System and one of the best-studied. Forms the V-shape of the head of Taurus.',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Hyades_%2851525737331%29.jpg/640px-Hyades_%2851525737331%29.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Hyades_(star_cluster)',
+  },
+  {
+    id: 'omega-cen',
+    name: 'Omega Centauri (NGC 5139)',
+    ra: 201.7,
+    dec: -47.48,
+    mag: 3.9,
+    type: 'cluster',
+    constellation: 'Centaurus',
+    distance: '~17,090 light-years',
+    description:
+      'The largest and brightest globular cluster orbiting the Milky Way. Contains approximately 10 million stars.',
+    discoveredBy: 'Edmond Halley',
+    discoveryYear: '1677',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Omega_Centauri_by_ESO.jpg/640px-Omega_Centauri_by_ESO.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Omega_Centauri',
+  },
+  {
+    id: 'm13',
+    name: 'Hercules Cluster (M13)',
+    ra: 250.42,
+    dec: 36.46,
+    mag: 5.8,
+    type: 'cluster',
+    constellation: 'Hercules',
+    distance: '~22,200 light-years',
+    description:
+      'A globular cluster of several hundred thousand stars. Target of the 1974 Arecibo message sent to search for extraterrestrial life.',
+    discoveredBy: 'Edmond Halley',
+    discoveryYear: '1714',
+    imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/A_Swarm_of_Ancient_Stars_-_GPN-2000-000930.jpg/640px-A_Swarm_of_Ancient_Stars_-_GPN-2000-000930.jpg',
+    sourceLink: 'https://en.wikipedia.org/wiki/Messier_13',
+  },
+];
