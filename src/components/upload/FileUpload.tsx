@@ -8,18 +8,23 @@ import { Textarea } from '@/components/ui/textarea';
 import Papa from 'papaparse';
 import { useDatasets } from '@/hooks/useDatasets';
 import { useAuth } from '@/hooks/useAuth';
+import { runStandardizationPipeline, PipelineStep, PipelineResult } from '@/lib/dataPipeline';
+import { PipelineProgress } from './PipelineProgress';
 
 interface ParsedFile {
   name: string;
   type: 'fits' | 'csv' | 'unknown';
   size: number;
-  status: 'parsing' | 'success' | 'error' | 'uploading' | 'uploaded';
+  status: 'parsing' | 'processing' | 'success' | 'error' | 'uploading' | 'uploaded';
   data?: any;
   error?: string;
   headers?: string[];
   rowCount?: number;
   metadata?: Record<string, any>;
   file?: File;
+  fullRows?: Array<Record<string, unknown>>;
+  pipelineSteps?: PipelineStep[];
+  pipelineResult?: PipelineResult;
 }
 
 interface FileUploadProps {
@@ -32,47 +37,30 @@ function parseFITSHeader(buffer: ArrayBuffer): Record<string, any> {
   const header: Record<string, any> = {};
   const view = new Uint8Array(buffer);
   const headerText = new TextDecoder('ascii').decode(view.slice(0, 2880));
-  
-  // Parse FITS header cards (80 characters each)
   for (let i = 0; i < headerText.length; i += 80) {
     const card = headerText.slice(i, i + 80);
     if (card.startsWith('END')) break;
-    
     const keyword = card.slice(0, 8).trim();
     if (keyword && card[8] === '=') {
       let value = card.slice(10, 30).trim();
-      // Remove quotes from string values
-      if (value.startsWith("'")) {
-        value = value.replace(/^'|'$/g, '').trim();
-      }
+      if (value.startsWith("'")) value = value.replace(/^'|'$/g, '').trim();
       header[keyword] = value;
     }
   }
-  
   return header;
 }
 
-// Parse FITS data (binary table or image)
 function parseFITSData(buffer: ArrayBuffer, header: Record<string, any>): any {
   const naxis = parseInt(header.NAXIS || '0');
   const bitpix = parseInt(header.BITPIX || '0');
-  
-  if (naxis === 0) {
-    return { type: 'empty', message: 'No data array present' };
-  }
-  
-  const dimensions = [];
-  for (let i = 1; i <= naxis; i++) {
-    dimensions.push(parseInt(header[`NAXIS${i}`] || '0'));
-  }
-  
-  // For now, return metadata about the data structure
+  if (naxis === 0) return { type: 'empty', message: 'No data array present' };
+  const dimensions: number[] = [];
+  for (let i = 1; i <= naxis; i++) dimensions.push(parseInt(header[`NAXIS${i}`] || '0'));
   return {
     type: naxis === 2 ? 'image' : naxis === 1 ? 'spectrum' : 'datacube',
     dimensions,
     bitpix,
     dataSize: dimensions.reduce((a, b) => a * b, 1) * Math.abs(bitpix) / 8,
-    sampleData: Array.from(new Float32Array(buffer.slice(2880, 2880 + 40))).slice(0, 10)
   };
 }
 
@@ -86,127 +74,119 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
   const { uploadDataset } = useDatasets();
   const { user } = useAuth();
 
+  // Update a single file in state by name, and also update selectedFile if it's the one.
+  const updateFile = useCallback((name: string, patch: Partial<ParsedFile>) => {
+    setFiles((prev) => prev.map((f) => (f.name === name ? { ...f, ...patch } : f)));
+    setSelectedFile((prev) => (prev && prev.name === name ? { ...prev, ...patch } : prev));
+  }, []);
+
+  const runPipeline = useCallback(
+    async (fileName: string, args: Parameters<typeof runStandardizationPipeline>[0]) => {
+      updateFile(fileName, { status: 'processing' });
+      const result = await runStandardizationPipeline({
+        ...args,
+        onStep: (steps) => updateFile(fileName, { pipelineSteps: steps }),
+      });
+      updateFile(fileName, {
+        status: result.detectedFormat === 'unknown' ? 'error' : 'success',
+        pipelineResult: result,
+        pipelineSteps: result.steps,
+      });
+      return result;
+    },
+    [updateFile]
+  );
+
   const parseFile = useCallback(async (file: File) => {
     const parsedFile: ParsedFile = {
       name: file.name,
       type: 'unknown',
       size: file.size,
       status: 'parsing',
-      file: file,
+      file,
     };
-
-    // Determine file type
     const extension = file.name.toLowerCase().split('.').pop();
-    if (extension === 'fits' || extension === 'fit') {
-      parsedFile.type = 'fits';
-    } else if (extension === 'csv') {
-      parsedFile.type = 'csv';
-    }
+    if (extension === 'fits' || extension === 'fit') parsedFile.type = 'fits';
+    else if (extension === 'csv') parsedFile.type = 'csv';
 
     setFiles((prev) => [...prev, parsedFile]);
+    setSelectedFile(parsedFile);
 
     try {
       if (parsedFile.type === 'csv') {
-        // Parse CSV
         const text = await file.text();
         Papa.parse(text, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: (results) => {
-            const updatedFile: ParsedFile = {
-              ...parsedFile,
-              status: 'success',
-              data: results.data.slice(0, 100),
-              headers: results.meta.fields || [],
-              rowCount: results.data.length,
+          complete: async (results) => {
+            const rows = results.data as Array<Record<string, unknown>>;
+            const headers = results.meta.fields || [];
+            const preview = rows.slice(0, 100);
+
+            updateFile(file.name, {
+              data: preview,
+              headers,
+              rowCount: rows.length,
+              fullRows: rows.slice(0, 1000), // cap
               metadata: {
                 delimiter: results.meta.delimiter,
-                linebreak: results.meta.linebreak,
-                fields: results.meta.fields?.length || 0,
+                fields: headers.length,
               },
-              file: file,
-            };
-            setFiles((prev) =>
-              prev.map((f) => f.name === file.name ? updatedFile : f)
-            );
-            setSelectedFile(updatedFile);
+            });
             setDatasetName(file.name.replace(/\.[^/.]+$/, ''));
-            if (onFileParsed) {
-              onFileParsed(updatedFile);
-            }
+
+            // Run standardization pipeline
+            const result = await runPipeline(file.name, {
+              fileName: file.name,
+              fileType: 'csv',
+              parsedRows: rows,
+              columnHeaders: headers,
+              totalRowCount: rows.length,
+            });
+            onFileParsed?.({ ...parsedFile, status: 'success', pipelineResult: result });
           },
           error: (error) => {
-            setFiles((prev) =>
-              prev.map((f) =>
-                f.name === file.name
-                  ? { ...f, status: 'error', error: error.message }
-                  : f
-              )
-            );
+            updateFile(file.name, { status: 'error', error: error.message });
           },
         });
       } else if (parsedFile.type === 'fits') {
-        // Parse FITS
         const buffer = await file.arrayBuffer();
         const header = parseFITSHeader(buffer);
         const data = parseFITSData(buffer, header);
-        
-        const updatedFile: ParsedFile = {
-          ...parsedFile,
-          status: 'success',
+
+        updateFile(file.name, {
           metadata: header,
-          data: data,
+          data,
           headers: Object.keys(header),
-          file: file,
-        };
-        
-        setFiles((prev) =>
-          prev.map((f) => f.name === file.name ? updatedFile : f)
-        );
-        setSelectedFile(updatedFile);
+        });
         setDatasetName(header.OBJECT || file.name.replace(/\.[^/.]+$/, ''));
-        
-        if (onFileParsed) {
-          onFileParsed(updatedFile);
-        }
+
+        const result = await runPipeline(file.name, {
+          fileName: file.name,
+          fileType: 'fits',
+          headerData: header,
+        });
+        onFileParsed?.({ ...parsedFile, status: 'success', pipelineResult: result });
       } else {
-        setFiles((prev) =>
-          prev.map((f) =>
-            f.name === file.name
-              ? { ...f, status: 'error', error: 'Unsupported file format' }
-              : f
-          )
-        );
+        updateFile(file.name, { status: 'error', error: 'Unsupported file format' });
       }
     } catch (error) {
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.name === file.name
-            ? { ...f, status: 'error', error: (error as Error).message }
-            : f
-        )
-      );
+      updateFile(file.name, { status: 'error', error: (error as Error).message });
     }
-  }, [onFileParsed]);
+  }, [onFileParsed, runPipeline, updateFile]);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      droppedFiles.forEach(parseFile);
-    },
-    [parseFile]
-  );
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    droppedFiles.forEach(parseFile);
+  }, [parseFile]);
 
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFiles = Array.from(e.target.files || []);
-      selectedFiles.forEach(parseFile);
-    },
-    [parseFile]
-  );
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    selectedFiles.forEach(parseFile);
+  }, [parseFile]);
 
   const removeFile = (name: string) => {
     setFiles((prev) => prev.filter((f) => f.name !== name));
@@ -219,13 +199,9 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
 
   const handleSaveToDatabase = async () => {
     if (!selectedFile?.file || !datasetName || !user) return;
+    updateFile(selectedFile.name, { status: 'uploading' });
 
-    setFiles((prev) =>
-      prev.map((f) =>
-        f.name === selectedFile.name ? { ...f, status: 'uploading' } : f
-      )
-    );
-
+    const p = selectedFile.pipelineResult;
     const result = await uploadDataset({
       name: datasetName,
       description: description || undefined,
@@ -234,29 +210,23 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
         file_name: selectedFile.name,
         file_format: selectedFile.type,
         file_size_bytes: selectedFile.size,
-        object_name: selectedFile.metadata?.OBJECT,
+        object_name: p?.objectName ?? selectedFile.metadata?.OBJECT,
         num_rows: selectedFile.rowCount,
         num_columns: selectedFile.headers?.length,
         header_data: selectedFile.metadata,
+        coordinate_system: p?.detectedCoordinateSystem,
+        units: p?.raUnit ? `RA: ${p.raUnit === 'hours' ? 'hours→deg' : 'deg'}` : undefined,
       },
     });
 
     if (result) {
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.name === selectedFile.name ? { ...f, status: 'uploaded' } : f
-        )
-      );
+      updateFile(selectedFile.name, { status: 'uploaded' });
       setSelectedFile(null);
       setDatasetName('');
       setDescription('');
       onDatasetUploaded?.();
     } else {
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.name === selectedFile.name ? { ...f, status: 'success' } : f
-        )
-      );
+      updateFile(selectedFile.name, { status: 'success' });
     }
   };
 
@@ -270,10 +240,7 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
     <div className="space-y-6">
       {/* Upload Zone */}
       <motion.div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
@@ -289,40 +256,29 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
           onChange={handleFileSelect}
           className="hidden"
         />
-        
-        <motion.div
-          animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
-          className="flex flex-col items-center gap-4"
-        >
+        <motion.div animate={isDragging ? { scale: 1.1 } : { scale: 1 }} className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Upload className="w-8 h-8 text-primary" />
           </div>
           <div>
-            <p className="text-lg font-display font-semibold text-foreground">
-              Drop astronomical files here
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Supports FITS, CSV formats • Click or drag files
-            </p>
+            <p className="text-lg font-display font-semibold text-foreground">Drop astronomical files here</p>
+            <p className="text-sm text-muted-foreground mt-1">Supports FITS, CSV formats • Click or drag files</p>
           </div>
           <div className="flex gap-2">
-            <span className="px-3 py-1 rounded-full text-xs bg-primary/10 text-primary border border-primary/20">
-              .fits
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs bg-secondary/10 text-secondary border border-secondary/20">
-              .csv
-            </span>
+            <span className="px-3 py-1 rounded-full text-xs bg-primary/10 text-primary border border-primary/20">.fits</span>
+            <span className="px-3 py-1 rounded-full text-xs bg-secondary/10 text-secondary border border-secondary/20">.csv</span>
           </div>
         </motion.div>
       </motion.div>
 
+      {/* Pipeline progress for currently selected file */}
+      {selectedFile?.pipelineSteps && (
+        <PipelineProgress steps={selectedFile.pipelineSteps} result={selectedFile.pipelineResult} />
+      )}
+
       {/* Save to Database Form */}
       {selectedFile && selectedFile.status === 'success' && user && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6">
           <h3 className="font-display font-semibold text-lg mb-4 flex items-center gap-2">
             <Save className="w-5 h-5 text-primary" />
             Save to Cloud Repository
@@ -348,14 +304,9 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
                 className="bg-muted/30 border-border/50 min-h-[80px]"
               />
             </div>
-            <Button
-              variant="cosmic"
-              onClick={handleSaveToDatabase}
-              disabled={!datasetName}
-              className="w-full"
-            >
+            <Button variant="cosmic" onClick={handleSaveToDatabase} disabled={!datasetName} className="w-full">
               <Database className="w-4 h-4" />
-              Save Dataset to Cloud
+              Save Standardized Dataset to Cloud
             </Button>
           </div>
         </motion.div>
@@ -363,17 +314,9 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
 
       {/* Auth prompt */}
       {selectedFile && selectedFile.status === 'success' && !user && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 text-center"
-        >
-          <p className="text-muted-foreground mb-4">
-            Sign in to save datasets to your cloud repository
-          </p>
-          <Button variant="cosmic" asChild>
-            <a href="/login">Sign In</a>
-          </Button>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 text-center">
+          <p className="text-muted-foreground mb-4">Sign in to save datasets to your cloud repository</p>
+          <Button variant="cosmic" asChild><a href="/login">Sign In</a></Button>
         </motion.div>
       )}
 
@@ -386,16 +329,15 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -100 }}
             transition={{ delay: index * 0.1 }}
-            className={`glass-card p-4 ${selectedFile?.name === file.name ? 'ring-2 ring-primary' : ''}`}
-            onClick={() => file.status === 'success' && setSelectedFile(file)}
+            className={`glass-card p-4 cursor-pointer ${selectedFile?.name === file.name ? 'ring-2 ring-primary' : ''}`}
+            onClick={() => setSelectedFile(file)}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  file.type === 'fits' ? 'bg-secondary/20' : 
-                  file.type === 'csv' ? 'bg-accent/20' : 'bg-muted'
+                  file.type === 'fits' ? 'bg-secondary/20' : file.type === 'csv' ? 'bg-accent/20' : 'bg-muted'
                 }`}>
-                  {file.status === 'parsing' || file.status === 'uploading' ? (
+                  {file.status === 'parsing' || file.status === 'processing' || file.status === 'uploading' ? (
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   ) : file.type === 'fits' ? (
                     <Database className="w-6 h-6 text-secondary" />
@@ -404,29 +346,22 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatFileSize(file.size)}
-                    </span>
-                    {file.status === 'success' && (
-                      <CheckCircle className="w-4 h-4 text-accent" />
-                    )}
+                    <span className="text-xs text-muted-foreground">{formatFileSize(file.size)}</span>
+                    {file.status === 'success' && <CheckCircle className="w-4 h-4 text-accent" />}
                     {file.status === 'uploaded' && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-accent/20 text-accent">
-                        Saved
-                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-accent/20 text-accent">Saved</span>
                     )}
                     {file.status === 'uploading' && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-primary/20 text-primary">
-                        Uploading...
-                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-primary/20 text-primary">Uploading...</span>
                     )}
-                    {file.status === 'error' && (
-                      <AlertCircle className="w-4 h-4 text-destructive" />
+                    {file.status === 'processing' && (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-primary/20 text-primary">Standardizing...</span>
                     )}
+                    {file.status === 'error' && <AlertCircle className="w-4 h-4 text-destructive" />}
                   </div>
-                  
+
                   {file.status === 'success' && (
                     <div className="mt-2 text-sm text-muted-foreground">
                       {file.type === 'csv' && (
@@ -436,40 +371,31 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
                         <span>
                           {file.metadata.OBJECT && `Object: ${file.metadata.OBJECT} • `}
                           {file.data?.type && `Type: ${file.data.type}`}
-                          {file.data?.dimensions && ` • ${file.data.dimensions.join(' × ')} pixels`}
+                          {file.data?.dimensions && ` • ${file.data.dimensions.join(' × ')}`}
                         </span>
+                      )}
+                      {file.pipelineResult?.detectedCoordinateSystem && (
+                        <span> • Coord: {file.pipelineResult.detectedCoordinateSystem.toUpperCase()}</span>
                       )}
                     </div>
                   )}
-                  
-                  {file.status === 'error' && (
-                    <p className="mt-1 text-sm text-destructive">{file.error}</p>
-                  )}
+                  {file.status === 'error' && <p className="mt-1 text-sm text-destructive">{file.error}</p>}
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeFile(file.name);
-                }}
+                onClick={(e) => { e.stopPropagation(); removeFile(file.name); }}
                 className="text-muted-foreground hover:text-destructive"
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
 
-            {/* Data Preview */}
+            {/* CSV Preview */}
             {file.status === 'success' && file.type === 'csv' && file.data && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                className="mt-4 overflow-hidden"
-              >
-                <div className="text-xs font-medium text-muted-foreground mb-2">
-                  Data Preview (first 5 rows)
-                </div>
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="mt-4 overflow-hidden">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Data Preview (first 5 rows)</div>
                 <div className="overflow-x-auto rounded-lg border border-border/50">
                   <table className="w-full text-xs">
                     <thead className="bg-muted/50">
@@ -477,6 +403,12 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
                         {file.headers?.slice(0, 6).map((header) => (
                           <th key={header} className="px-3 py-2 text-left font-medium text-muted-foreground">
                             {header}
+                            {file.pipelineResult?.raColumn === header && (
+                              <span className="ml-1 text-[9px] text-primary">[RA]</span>
+                            )}
+                            {file.pipelineResult?.decColumn === header && (
+                              <span className="ml-1 text-[9px] text-secondary">[Dec]</span>
+                            )}
                           </th>
                         ))}
                         {(file.headers?.length || 0) > 6 && (
@@ -489,7 +421,7 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
                         <tr key={i} className="border-t border-border/30">
                           {file.headers?.slice(0, 6).map((header) => (
                             <td key={header} className="px-3 py-2 text-foreground">
-                              {typeof row[header] === 'number' 
+                              {typeof row[header] === 'number'
                                 ? row[header].toFixed?.(4) ?? row[header]
                                 : String(row[header] ?? '')}
                             </td>
@@ -507,14 +439,8 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
 
             {/* FITS Metadata Preview */}
             {file.status === 'success' && file.type === 'fits' && file.metadata && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                className="mt-4 overflow-hidden"
-              >
-                <div className="text-xs font-medium text-muted-foreground mb-2">
-                  FITS Header Metadata
-                </div>
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="mt-4 overflow-hidden">
+                <div className="text-xs font-medium text-muted-foreground mb-2">FITS Header Metadata</div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {Object.entries(file.metadata).slice(0, 8).map(([key, value]) => (
                     <div key={key} className="px-3 py-2 rounded-lg bg-muted/30 border border-border/30">
