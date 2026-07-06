@@ -426,7 +426,7 @@ export function SkyMap({ customObjects = [], compact = false }: SkyMapProps) {
             isSelected={selectedId === obj.id}
             isHovered={hoveredId === obj.id}
             onClick={() => handleObjectClick(obj.id)}
-            onHover={(h) => setHoveredId(h ? obj.id : (prev => (prev === obj.id ? null : prev)) as any)}
+            onHover={(h) => setHoveredId(prev => h ? obj.id : (prev === obj.id ? null : prev))}
           />
         ))}
 
