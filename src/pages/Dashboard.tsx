@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatasets } from '@/hooks/useDatasets';
+import { APODCard } from '@/components/nasa/APODCard';
+import { NEOPanel } from '@/components/nasa/NEOPanel';
 
 export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -171,6 +173,12 @@ export default function Dashboard() {
               </Link>
             </div>
           </motion.div>
+
+          {/* NASA Live Data */}
+          <div className="grid lg:grid-cols-2 gap-6 mb-8">
+            <APODCard />
+            <NEOPanel />
+          </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Recent Datasets */}
