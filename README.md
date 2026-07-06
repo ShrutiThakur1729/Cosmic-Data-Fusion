@@ -72,22 +72,6 @@ By integrating **NASA Open APIs** with interactive dashboards and modern data vi
 
 ---
 
-# 📸 Platform Preview
-
-> Replace these placeholders with actual screenshots.
-
-<p align="center">
-
-Dashboard • Dataset Explorer • NASA Data Viewer
-
-<br><br>
-
-Analytics • Charts • Research Workspace
-
-</p>
-
----
-
 # 🏗️ System Architecture
 
 ```text
