@@ -10,6 +10,7 @@ import { useDatasets } from '@/hooks/useDatasets';
 import { useAuth } from '@/hooks/useAuth';
 import { runStandardizationPipeline, PipelineStep, PipelineResult } from '@/lib/dataPipeline';
 import { PipelineProgress } from './PipelineProgress';
+import { MiniSkyPreview } from '@/components/skymap/MiniSkyPreview';
 
 interface ParsedFile {
   name: string;
@@ -271,9 +272,19 @@ export function FileUpload({ onFileParsed, onDatasetUploaded }: FileUploadProps)
         </motion.div>
       </motion.div>
 
-      {/* Pipeline progress for currently selected file */}
+      {/* Pipeline progress + mini sky preview */}
       {selectedFile?.pipelineSteps && (
-        <PipelineProgress steps={selectedFile.pipelineSteps} result={selectedFile.pipelineResult} />
+        <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+          <PipelineProgress steps={selectedFile.pipelineSteps} result={selectedFile.pipelineResult} />
+          {selectedFile.pipelineResult?.standardizedRows && (() => {
+            const rows = selectedFile.pipelineResult.standardizedRows;
+            const points = rows
+              .map((r: any) => ({ ra: r._ra_deg, dec: r._dec_deg, name: r.name ?? r.Name ?? r.id }))
+              .filter(p => typeof p.ra === 'number' && typeof p.dec === 'number')
+              .slice(0, 500);
+            return points.length > 0 ? <MiniSkyPreview points={points} /> : null;
+          })()}
+        </div>
       )}
 
       {/* Save to Database Form */}
