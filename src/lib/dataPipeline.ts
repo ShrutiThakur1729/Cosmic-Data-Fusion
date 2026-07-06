@@ -241,7 +241,9 @@ export async function runStandardizationPipeline(params: RunPipelineParams): Pro
   if (result.standardizedRows) {
     const seen = new Set<string>();
     for (const r of result.standardizedRows) {
-      const k = `${r._ra_deg?.toFixed?.(3)}|${r._dec_deg?.toFixed?.(3)}`;
+      const ra = r._ra_deg as number | null;
+      const dec = r._dec_deg as number | null;
+      const k = `${ra?.toFixed(3)}|${dec?.toFixed(3)}`;
       if (seen.has(k)) duplicates++; else seen.add(k);
     }
   }
