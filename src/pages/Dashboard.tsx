@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatasets } from '@/hooks/useDatasets';
+import { APODCard } from '@/components/nasa/APODCard';
+import { NEOPanel } from '@/components/nasa/NEOPanel';
 
 export default function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
