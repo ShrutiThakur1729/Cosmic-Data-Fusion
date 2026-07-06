@@ -25,11 +25,7 @@
 <img src="https://img.shields.io/badge/🌐_Live_Demo-00C853?style=for-the-badge">
 </a>
 
-<a href="#">
-<img src="https://img.shields.io/badge/🎥_Demo_Video-FF1744?style=for-the-badge">
-</a>
-
-<a href="#">
+<a href="https://github.com/ShrutiThakur1729/Cosmic-Data-Fusion.git">
 <img src="https://img.shields.io/badge/📂_Source_Code-181717?style=for-the-badge&logo=github">
 </a>
 
