@@ -47,6 +47,8 @@ Researchers and students frequently face challenges such as:
 
 These limitations slow research, reduce collaboration, and make space science less accessible to students and early-stage researchers.
 
+// To test the live demo, you can even use the provided sample dataset (sample_catalog.csv or even your own dataset).
+
 ---
 
 # 💡 Our Solution
