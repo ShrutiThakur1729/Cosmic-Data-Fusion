@@ -7,17 +7,17 @@ import { NASA_API_KEY } from '@/lib/nasa';
 
 // Base textures
 const EARTH_BLUE_MARBLE =
-  'https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57752/land_shallow_topo_2048.jpg';
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg';
 const EARTH_DAY_FALLBACK =
-  'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg';
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg';
 const EARTH_NIGHT =
-  'https://eoimages.gsfc.nasa.gov/images/imagerecords/55000/55167/earth_lights_lrg.jpg';
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_lights_2048.png';
 const EARTH_NORMAL =
-  'https://threejs.org/examples/textures/planets/earth_normal_2048.jpg';
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg';
 const EARTH_SPEC =
-  'https://threejs.org/examples/textures/planets/earth_specular_2048.jpg';
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg';
 const CLOUDS_MAP =
-  'https://threejs.org/examples/textures/planets/earth_clouds_1024.png';
+  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png';
 
 export type EarthMode = 'blue-marble' | 'epic-live' | 'night-lights';
 
