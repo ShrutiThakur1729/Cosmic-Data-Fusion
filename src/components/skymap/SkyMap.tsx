@@ -13,6 +13,8 @@ import {
   raToHMS,
   decToDMS,
 } from '@/lib/starColor';
+import { MilkyWaySphere } from './MilkyWaySphere';
+import { SmartImage } from './SmartImage';
 
 // ─── coord math ───────────────────────────────────────────────────────────
 function equatorialToGalactic(raDeg: number, decDeg: number) {
@@ -408,12 +410,15 @@ export function SkyMap({ customObjects = [], compact = false }: SkyMapProps) {
         <ambientLight intensity={0.25} />
         {/* dense faint background stars */}
         <Stars radius={90} depth={60} count={compact ? 3000 : 15000} factor={2.2} saturation={0} fade speed={0.4} />
-        <Suspense fallback={null}><MilkyWayBand /></Suspense>
+        {/* Real ESO Milky Way panorama (equirectangular) as the celestial sphere */}
+        <Suspense fallback={<MilkyWayBand />}>
+          <MilkyWaySphere radius={60} opacity={0.75} />
+        </Suspense>
 
-        {/* inner dark celestial sphere */}
+        {/* inner tint to preserve foreground contrast */}
         <mesh>
           <sphereGeometry args={[10, 64, 64]} />
-          <meshBasicMaterial color="#05060d" side={THREE.BackSide} transparent opacity={0.55} />
+          <meshBasicMaterial color="#05060d" side={THREE.BackSide} transparent opacity={0.25} depthWrite={false} />
         </mesh>
 
         <CelestialOverlays overlays={overlays} />
@@ -444,17 +449,19 @@ export function SkyMap({ customObjects = [], compact = false }: SkyMapProps) {
             className="absolute top-0 right-0 h-full w-full sm:w-[380px] z-20"
           >
             <div className="h-full glass-card rounded-none sm:rounded-l-2xl border-l border-border/50 overflow-y-auto">
-              {selectedObject.imageUrl && (
-                <div className="relative w-full h-48 overflow-hidden">
-                  <img src={selectedObject.imageUrl} alt={selectedObject.name} className="w-full h-full object-cover"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-                  <button onClick={() => { setSelectedId(null); setFlyTarget(new THREE.Vector3(15,5,15)); }}
-                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-background/60 backdrop-blur hover:bg-background/80 flex items-center justify-center">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+              <div className="relative w-full h-48 overflow-hidden">
+                <SmartImage
+                  src={selectedObject.imageUrl}
+                  fallbackQuery={selectedObject.name}
+                  alt={selectedObject.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+                <button onClick={() => { setSelectedId(null); setFlyTarget(new THREE.Vector3(15,5,15)); }}
+                  className="absolute top-3 right-3 w-8 h-8 rounded-full bg-background/60 backdrop-blur hover:bg-background/80 flex items-center justify-center">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
               <div className="p-5 space-y-4">
                 <div>
