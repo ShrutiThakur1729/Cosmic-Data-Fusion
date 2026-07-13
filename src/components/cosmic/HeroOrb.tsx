@@ -4,6 +4,7 @@ import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { TextureLoader } from 'three';
 import { NASA_API_KEY } from '@/lib/nasa';
+import { proxyTexture } from '@/lib/imageProxy';
 
 // Base textures
 const EARTH_BLUE_MARBLE =
@@ -41,10 +42,10 @@ function Planet({ mode, epicUrl, showClouds }: PlanetProps) {
       : EARTH_DAY_FALLBACK;
 
   const [colorMap, normalMap, specMap, cloudsTex] = useLoader(TextureLoader, [
-    baseUrl,
-    EARTH_NORMAL,
-    EARTH_SPEC,
-    CLOUDS_MAP,
+    proxyTexture(baseUrl),
+    proxyTexture(EARTH_NORMAL),
+    proxyTexture(EARTH_SPEC),
+    proxyTexture(CLOUDS_MAP),
   ]);
 
   // Ensure color textures render with correct color space
