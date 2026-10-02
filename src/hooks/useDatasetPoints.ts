@@ -5,7 +5,7 @@ import { runStandardizationPipeline, PipelineResult } from '@/lib/dataPipeline';
 
 export type LoadStage = 'idle' | 'fetching-file' | 'downloading' | 'parsing' | 'standardizing' | 'ready' | 'error';
 
-export interface DatasetPoint { ra: number; dec: number; name: string; mag?: number; type?: string }
+export interface DatasetPoint { ra: number; dec: number; name: string; mag?: number; type?: string; snr?: number; row: Record<string, unknown> }
 
 export interface DatasetLoadState {
   stage: LoadStage;
@@ -82,6 +82,8 @@ export function useDatasetPoints(datasetId: string | null): DatasetLoadState {
               name: String(anyR.name ?? anyR.Name ?? anyR.id ?? anyR.designation ?? `row-${points.length + 1}`),
               mag: Number(anyR.mag ?? anyR.magnitude ?? anyR.Vmag ?? anyR.vmag) || undefined,
               type: (anyR.type ?? anyR.otype ?? undefined) as string | undefined,
+              snr: Number(anyR.snr ?? anyR.SNR ?? anyR.s_n ?? anyR.signal_to_noise) || undefined,
+              row: r,
             });
           }
           if (points.length >= 2000) break;

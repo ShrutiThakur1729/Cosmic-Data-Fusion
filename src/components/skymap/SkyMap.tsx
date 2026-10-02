@@ -281,9 +281,10 @@ function CameraController({ target, onReset }: CamCtrlProps) {
 interface SkyMapProps {
   customObjects?: Array<Partial<CelestialObject> & { name: string; ra: number; dec: number }>;
   compact?: boolean;
+  onCustomObjectClick?: (index: number) => void;
 }
 
-export function SkyMap({ customObjects = [], compact = false }: SkyMapProps) {
+export function SkyMap({ customObjects = [], compact = false, onCustomObjectClick }: SkyMapProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [coordinateSystem, setCoordinateSystem] = useState<'equatorial' | 'galactic'>('equatorial');
@@ -430,7 +431,7 @@ export function SkyMap({ customObjects = [], compact = false }: SkyMapProps) {
             position={position}
             isSelected={selectedId === obj.id}
             isHovered={hoveredId === obj.id}
-            onClick={() => handleObjectClick(obj.id)}
+            onClick={() => { handleObjectClick(obj.id); if (obj.id.startsWith('custom-')) onCustomObjectClick?.(Number(obj.id.slice(7))); }}
             onHover={(h) => setHoveredId(prev => h ? obj.id : (prev === obj.id ? null : prev))}
           />
         ))}
@@ -440,7 +441,7 @@ export function SkyMap({ customObjects = [], compact = false }: SkyMapProps) {
 
       {/* Detail panel */}
       <AnimatePresence>
-        {selectedObject && !compact && (
+        {selectedObject && !compact && !(onCustomObjectClick && selectedObject.id.startsWith('custom-')) && (
           <motion.div
             initial={{ x: 400, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
