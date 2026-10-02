@@ -1,0 +1,21 @@
+Object Name,Object Type,RA,Dec,Distance (ly),Magnitude,Constellation
+Sirius,Star,06:45:08.9,-16:42:58,8.6,-1.46,Canis Major
+Betelgeuse,Star,05:55:10.3,+07:24:25,642,0.42,Orion
+Rigel,Star,05:14:32.3,-08:12:06,863,0.18,Orion
+Polaris,Star,02:31:49.1,+89:15:51,433,1.97,Ursa Minor
+Vega,Star,18:36:56.3,+38:47:01,25.0,0.03,Lyra
+Altair,Star,19:50:47,+08:52:06,16.7,0.77,Aquila
+Deneb,Star,20:41:25,+45:16:49,2600,1.25,Cygnus
+Andromeda Galaxy,Galaxy,00:42:44,+41:16:09,2537000,3.44,Andromeda
+Triangulum Galaxy,Galaxy,01:33:50,+30:39:37,2730000,5.72,Triangulum
+Whirlpool Galaxy,Galaxy,13:29:52,+47:11:43,23000000,8.4,Canes Venatici
+Orion Nebula,Nebula,05:35:17,-05:23:28,1344,4.0,Orion
+Lagoon Nebula,Nebula,18:03:37,-24:23:12,4100,6.0,Sagittarius
+Eagle Nebula,Nebula,18:18:48,-13:49:00,7000,6.4,Serpens
+Ring Nebula,Nebula,18:53:35,+33:01:45,2300,8.8,Lyra
+Pleiades,Cluster,03:47:24,+24:07:00,444,1.6,Taurus
+Hyades,Cluster,04:27:00,+15:52:00,153,0.5,Taurus
+Omega Centauri,Cluster,13:26:47,-47:28:46,15800,3.7,Centaurus
+47 Tucanae,Cluster,00:24:05,-72:04:52,16700,4.1,Tucana
+Sombrero Galaxy,Galaxy,12:39:59,-11:37:23,31100000,8.98,Virgo
+Black Eye Galaxy,Galaxy,12:56:43,+21:40:58,17000000,9.3,Coma Berenices
