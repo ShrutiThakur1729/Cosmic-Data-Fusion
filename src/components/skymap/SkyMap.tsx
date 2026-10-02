@@ -341,7 +341,7 @@ export function SkyMap({ customObjects = [], compact = false, onCustomObjectClic
   const toggle = (k: keyof Overlays) => setOverlays(o => ({ ...o, [k]: !o[k] }));
 
   return (
-    <div className="relative w-full h-full min-h-[500px] rounded-xl overflow-hidden glass-card">
+    <div id="skymap-canvas-container" className="relative w-full h-full min-h-[500px] rounded-xl overflow-hidden glass-card">
       {!compact && (
         <>
           {/* controls */}
@@ -407,7 +407,11 @@ export function SkyMap({ customObjects = [], compact = false, onCustomObjectClic
         </>
       )}
 
-      <Canvas camera={{ position: [15, 5, 15], fov: 60 }} onPointerMissed={() => setSelectedId(null)}>
+      <Canvas
+        gl={{ preserveDrawingBuffer: true, antialias: true, alpha: true }}
+        camera={{ position: [15, 5, 15], fov: 60 }}
+        onPointerMissed={() => setSelectedId(null)}
+      >
         <ambientLight intensity={0.25} />
         {/* dense faint background stars */}
         <Stars radius={90} depth={60} count={compact ? 3000 : 15000} factor={2.2} saturation={0} fade speed={0.4} />

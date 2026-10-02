@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Info, Maximize2, Sparkles, Download } from 'lucide-react';
+import { Info, Maximize2, Sparkles, Download, Camera, FileSpreadsheet, Database, Filter, FileText } from 'lucide-react';
 import { ObjectDetailsModal } from '@/components/skymap/ObjectDetailsModal';
 import { SkyFilters, DEFAULT_FILTERS, applyFilters, SkyFilterState } from '@/components/skymap/SkyFilters';
 import { AnalysisCharts, AnalysisSnapshot } from '@/components/skymap/AnalysisCharts';
 import { useDatasets } from '@/hooks/useDatasets';
-import { downloadBlob, rowsToCSV, rowsToFITS } from '@/lib/exportData';
+import { downloadBlob, rowsToCSV, rowsToFITS, captureSkyMapCanvas } from '@/lib/exportData';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Navbar } from '@/components/layout/Navbar';
 import { StarField } from '@/components/cosmic/StarField';
@@ -14,6 +14,7 @@ import { DatasetPicker } from '@/components/skymap/DatasetPicker';
 import { SkyMapLoadStatus } from '@/components/skymap/SkyMapLoadStatus';
 import { useDatasetPoints } from '@/hooks/useDatasetPoints';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export default function SkyMapPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -53,16 +54,76 @@ export default function SkyMapPage() {
 
   const baseName = (dataset?.name ?? 'dataset').replace(/[^\w.-]+/g, '_');
   const summary = () => ({
-    dataset: dataset?.name, exportedAt: new Date().toISOString(),
-    coordinateSystem: load.result?.detectedCoordinateSystem,
-    raColumn: load.result?.raColumn, decColumn: load.result?.decColumn,
-    validation: load.result?.validation, completeness,
-    filters, pointsPlotted: visible.length, pointsTotal: load.points.length,
+    dataset: dataset?.name ?? 'Standardized Sky Observation',
+    exportedAt: new Date().toISOString(),
+    coordinateSystem: load.result?.detectedCoordinateSystem || 'ICRS',
+    raColumn: load.result?.raColumn,
+    decColumn: load.result?.decColumn,
+    validation: load.result?.validation,
+    completeness,
+    qualityScore: load.result?.validation?.qualityScore,
+    filters,
+    pointsPlotted: visible.length,
+    pointsTotal: load.points.length,
   });
-  const exportCSV = () => downloadBlob(rowsToCSV(load.result?.standardizedRows ?? []), `${baseName}_standardized.csv`, 'text/csv');
-  const exportFITS = () => downloadBlob(rowsToFITS(load.result?.standardizedRows ?? []), `${baseName}_standardized.fits`, 'application/fits');
-  const exportSummary = () => downloadBlob(JSON.stringify(summary(), null, 2), `${baseName}_skymap_summary.json`, 'application/json');
-  const exportFiltered = () => downloadBlob(rowsToCSV(visible.map(p => p.row)), `${baseName}_filtered.csv`, 'text/csv');
+
+  const exportCSV = () => {
+    try {
+      const rows = load.result?.standardizedRows ?? [];
+      const csvStr = rowsToCSV(rows, summary());
+      downloadBlob(csvStr, `${baseName}_standardized.csv`, 'text/csv;charset=utf-8;');
+      toast.success(`Standardized CSV exported successfully (${rows.length.toLocaleString()} records + analysis header)`);
+    } catch (err: any) {
+      toast.error(err?.message || 'CSV export failed');
+    }
+  };
+
+  const exportFITS = () => {
+    try {
+      const rows = load.result?.standardizedRows ?? [];
+      const fitsBuf = rowsToFITS(rows, 'STANDARDIZED', summary());
+      downloadBlob(fitsBuf, `${baseName}_standardized.fits`, 'application/fits');
+      toast.success(`Standardized FITS file exported (${rows.length.toLocaleString()} records + primary HDU cards)`);
+    } catch (err: any) {
+      toast.error(err?.message || 'FITS export failed');
+    }
+  };
+
+  const exportFiltered = () => {
+    try {
+      const rows = visible.map(p => p.row);
+      if (rows.length === 0) {
+        toast.error('Cannot export: 0 objects match your current sky filters. Please adjust bounds.');
+        return;
+      }
+      const csvStr = rowsToCSV(rows, summary());
+      downloadBlob(csvStr, `${baseName}_filtered_${rows.length}pts.csv`, 'text/csv;charset=utf-8;');
+      toast.success(`Exported ${rows.length.toLocaleString()} filtered records to CSV`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Filtered export failed');
+    }
+  };
+
+  const exportSummary = () => {
+    try {
+      const jsonStr = JSON.stringify(summary(), null, 2);
+      downloadBlob(jsonStr, `${baseName}_skymap_summary.json`, 'application/json');
+      toast.success('Analysis summary JSON exported successfully');
+    } catch (err: any) {
+      toast.error(err?.message || 'Summary export failed');
+    }
+  };
+
+  const exportSkyMapImage = () => {
+    try {
+      const container = document.getElementById('skymap-canvas-container');
+      captureSkyMapCanvas(container, `${baseName}_skymap_snapshot.png`);
+      toast.success('Sky Map 3D view downloaded as high-res PNG image!');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to capture Sky Map view');
+    }
+  };
+
   const canExport = load.stage === 'ready' && !!load.result?.standardizedRows?.length;
 
   const toggleFullscreen = () => {
@@ -118,13 +179,38 @@ export default function SkyMapPage() {
             <div className="flex gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={!canExport}><Download className="w-4 h-4 mr-2" />Export</Button>
+                <Button variant="outline" className="shadow-sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="glass-card">
-                <DropdownMenuItem onClick={exportCSV}>Standardized data (CSV)</DropdownMenuItem>
-                <DropdownMenuItem onClick={exportFITS}>Standardized data (FITS)</DropdownMenuItem>
-                <DropdownMenuItem onClick={exportFiltered}>Filtered points (CSV)</DropdownMenuItem>
-                <DropdownMenuItem onClick={exportSummary}>Analysis summary (JSON)</DropdownMenuItem>
+              <DropdownMenuContent align="end" className="glass-card w-64 p-1.5 space-y-1">
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground border-b border-border/20">
+                  Visual Sky Capture
+                </div>
+                <DropdownMenuItem onClick={exportSkyMapImage} className="cursor-pointer flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-accent" />
+                  <span>Download Sky Map View (PNG)</span>
+                </DropdownMenuItem>
+                <div className="px-2 py-1 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground border-b border-border/20 mt-1">
+                  Scientific Data & Catalogs
+                </div>
+                <DropdownMenuItem onClick={exportCSV} disabled={!canExport} className="cursor-pointer flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4 text-primary" />
+                  <span>Standardized data (CSV + Header)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportFITS} disabled={!canExport} className="cursor-pointer flex items-center gap-2">
+                  <Database className="w-4 h-4 text-primary" />
+                  <span>Standardized data (FITS BINTABLE)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportFiltered} disabled={!canExport} className="cursor-pointer flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-primary" />
+                  <span>Filtered points ({visible.length}) (CSV)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportSummary} disabled={!canExport} className="cursor-pointer flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  <span>Full Analysis Summary (JSON)</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="outline" size="icon" onClick={toggleFullscreen}>
