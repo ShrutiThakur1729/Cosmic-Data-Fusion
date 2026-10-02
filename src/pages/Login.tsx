@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Rocket } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Rocket, ShieldCheck, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,9 +19,10 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const navigate = useNavigate();
-  const { signIn, user, loading } = useAuth();
+  const { signIn, signInAsDemo, user, loading } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -29,6 +30,21 @@ export default function Login() {
       navigate('/dashboard');
     }
   }, [user, loading, navigate]);
+
+  const handleDemoLogin = async () => {
+    setIsDemoLoading(true);
+    const { error } = await signInAsDemo();
+    setIsDemoLoading(false);
+    if (!error) {
+      navigate('/dashboard');
+    }
+  };
+
+  const fillJudgeCredentials = () => {
+    setEmail('judge@cosmicfusion.space');
+    setPassword('CosmicJudge2025!');
+    setErrors({});
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,13 +110,70 @@ export default function Login() {
 
         {/* Form Card */}
         <div className="glass-card p-8">
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-2xl font-display font-bold text-foreground">
               Welcome Back
             </h1>
             <p className="text-muted-foreground mt-2">
               Sign in to continue your research
             </p>
+          </div>
+
+          {/* Judge & Jury Quick Access Box */}
+          <div className="mb-6 p-4 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-md relative overflow-hidden shadow-inner">
+            <div className="absolute top-0 right-0 px-2.5 py-0.5 text-[10px] uppercase tracking-wider font-semibold bg-gradient-to-r from-primary to-accent text-white rounded-bl-lg shadow-sm">
+              Hackathon / Jury
+            </div>
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  Judge & Evaluator Demo
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  1-click access preloaded with JWST, Chandra, Gaia & Hubble datasets.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="cosmic"
+              className="w-full font-medium shadow-md shadow-primary/25"
+              onClick={handleDemoLogin}
+              disabled={isDemoLoading || isLoading}
+            >
+              {isDemoLoading ? (
+                <div className="orbital-loader scale-50" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Instant Judge Demo Login
+                </>
+              )}
+            </Button>
+
+            <div className="mt-2.5 pt-2 border-t border-border/20 flex items-center justify-between text-[11px] text-muted-foreground">
+              <span className="font-mono truncate max-w-[200px]">judge@cosmicfusion.space</span>
+              <button
+                type="button"
+                onClick={fillJudgeCredentials}
+                className="text-primary hover:underline font-medium hover:text-primary/90 transition-colors"
+              >
+                Autofill form
+              </button>
+            </div>
+          </div>
+
+          <div className="relative my-6 text-center">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/30" />
+            </div>
+            <span className="relative bg-card/90 px-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+              Or sign in with account
+            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

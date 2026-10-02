@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Upload, BarChart3, Activity, Clock, ArrowUpRight, LogOut } from 'lucide-react';
+import { Database, Upload, BarChart3, Activity, Clock, ArrowUpRight, LogOut, ShieldCheck } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { StarField } from '@/components/cosmic/StarField';
 import { StatsCard } from '@/components/dashboard/StatsCard';
@@ -12,7 +12,7 @@ import { APODCard } from '@/components/nasa/APODCard';
 import { NEOPanel } from '@/components/nasa/NEOPanel';
 
 export default function Dashboard() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, isDemoUser } = useAuth();
   const { datasets, loading: datasetsLoading } = useDatasets();
   const navigate = useNavigate();
 
@@ -81,22 +81,57 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8 flex items-center justify-between"
+            className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4"
           >
             <div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold">
-                <span className="text-foreground">Welcome to </span>
-                <span className="gradient-text-cosmic">COSMIC</span>
-              </h1>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-3xl md:text-4xl font-display font-bold">
+                  <span className="text-foreground">Welcome to </span>
+                  <span className="gradient-text-cosmic">COSMIC</span>
+                </h1>
+                {isDemoUser && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/20 text-primary border border-primary/40">
+                    Jury Demo
+                  </span>
+                )}
+              </div>
               <p className="text-muted-foreground mt-2">
-                {user.email} • Researcher
+                {user.email} • {isDemoUser ? 'Judge Evaluator • Full Access' : 'Researcher'}
               </p>
             </div>
-            <Button variant="ghost" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            <div className="flex items-center gap-3">
+              <Link to="/datasets">
+                <Button variant="cosmic" size="sm">
+                  <Database className="w-4 h-4 mr-2" />
+                  View Datasets
+                </Button>
+              </Link>
+              <Button variant="ghost" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </motion.div>
+
+          {isDemoUser && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-8 p-4 rounded-xl border border-primary/30 bg-primary/10 backdrop-blur-md flex items-center justify-between flex-wrap gap-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center text-primary shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Judge Evaluation Session Active</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Preloaded with live JWST, Chandra, Gaia & Hubble datasets. You can test uploading, filtering, and cross-matching.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* Stats Grid */}
           <motion.div

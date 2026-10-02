@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Rocket, Database, BarChart3, Users, Settings, LogIn } from 'lucide-react';
+import { Menu, X, Rocket, Database, BarChart3, Users, Settings, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: BarChart3 },
@@ -14,6 +15,7 @@ const navItems = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user, isDemoUser, signOut } = useAuth();
 
   return (
     <motion.nav
@@ -63,17 +65,37 @@ export function Navbar() {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login">
-              <Button variant="ghost" size="sm">
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/signup">
-              <Button variant="cosmic" size="sm">
-                Get Started
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                {isDemoUser && (
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/30">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Judge Demo
+                  </span>
+                )}
+                <Link to="/dashboard">
+                  <Button variant="cosmic" size="sm">Dashboard</Button>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={() => signOut()}>
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link to="/login">
+                  <Button variant="ghost" size="sm">
+                    <LogIn className="w-4 h-4 mr-1.5" />
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/signup">
+                  <Button variant="cosmic" size="sm">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -108,12 +130,32 @@ export function Navbar() {
                 </Link>
               ))}
               <div className="pt-4 border-t border-border/30 space-y-2">
-                <Link to="/login" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" className="w-full">Sign In</Button>
-                </Link>
-                <Link to="/signup" onClick={() => setIsOpen(false)}>
-                  <Button variant="cosmic" className="w-full">Get Started</Button>
-                </Link>
+                {user ? (
+                  <>
+                    {isDemoUser && (
+                      <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold bg-primary/15 text-primary border border-primary/30">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Active Session: Judge Demo
+                      </div>
+                    )}
+                    <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                      <Button variant="cosmic" className="w-full">Dashboard</Button>
+                    </Link>
+                    <Button variant="outline" className="w-full" onClick={() => { setIsOpen(false); signOut(); }}>
+                      <LogOut className="w-4 h-4 mr-1.5" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full">Sign In</Button>
+                    </Link>
+                    <Link to="/signup" onClick={() => setIsOpen(false)}>
+                      <Button variant="cosmic" className="w-full">Get Started</Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
