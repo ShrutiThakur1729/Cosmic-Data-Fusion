@@ -208,7 +208,7 @@ export default function SkyMapPage() {
       <ObjectDetailsModal
         point={openIdx != null ? visible[openIdx] ?? null : null}
         datasetName={dataset?.name}
-        meta={dataset?.metadata as Record<string, unknown> | undefined}
+        meta={dataset?.metadata as unknown as Record<string, unknown> | undefined}
         onClose={() => setOpenIdx(null)}
       />
     </div>

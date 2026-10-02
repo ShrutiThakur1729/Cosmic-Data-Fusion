@@ -26,7 +26,7 @@ const strVal = (s: string) => `'${s.replace(/'/g, "''").padEnd(8)}'`;
 const pad2880 = (len: number) => (2880 - (len % 2880)) % 2880;
 
 // Writes numeric columns as 64-bit doubles in a BINTABLE extension.
-export function rowsToFITS(rows: Record<string, unknown>[], extname = 'STANDARDIZED'): Uint8Array {
+export function rowsToFITS(rows: Record<string, unknown>[], extname = "STANDARDIZED"): ArrayBuffer {
   const cols = Array.from(rows.reduce((s, r) => {
     Object.entries(r).forEach(([k, v]) => { if (typeof v === 'number') s.add(k); });
     return s;
@@ -59,5 +59,5 @@ export function rowsToFITS(rows: Record<string, unknown>[], extname = 'STANDARDI
     const v = r[c];
     dv.setFloat64(o, typeof v === 'number' ? v : NaN, false); o += 8;
   }
-  return out;
+  return out.buffer as ArrayBuffer;
 }
